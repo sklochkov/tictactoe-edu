@@ -54,8 +54,11 @@ def signUp():
         res.set_cookie(b'ID', bytes(user_id, 'utf-8'))
     if username !=  flask.request.cookies.get('username'):
         res.set_cookie(b'username', bytes(username, 'utf-8'))
-    if user_type == "first":
+    if user_type == "first" and not game_code:
         game_code = gen_game(user_id)
+    elif user_type == "first" and game_code:
+        res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/ERROR'
+        return res
     else:
         if game_code in app.games:
             if app.games[game_code].checkPlayer(user_id) == 0 and not app.games[game_code].second_player:
