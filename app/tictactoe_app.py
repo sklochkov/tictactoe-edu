@@ -57,6 +57,8 @@ def signUp():
         res.set_cookie(b'username', bytes(username, 'utf-8'))
     if user_type == "first" and not game_code:
         game_code = gen_game(user_id)
+        # текущим игроком становится автоматически первый игрок
+        app.games[game_code].current_player = user_id
     elif user_type == "first" and game_code:
         res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/ERROR'
         return res
@@ -76,15 +78,21 @@ def signUp():
 @app.route('/api/<game_code>/data', methods=['GET', 'POST'])
 def data(game_code):
     user_id = flask.request.cookies.get('ID')
+    player = app.games[game_code].checkPlayer(user_id)
     if flask.request.method == 'GET':
         res = {}
-        if app.games[game_code].checkPlayer(user_id) != 0:
-            res = {'game_board': app.games[game_code].board, 'game_state': app.games[game_code].gameOver()}
+        if player != 0:
+            res = {'game_board': app.games[game_code].board, 'game_state': app.games[game_code].gameOver(), 'current_player': app.games[game_code].current_player}
             return json.dumps(res)
         else:
+            # TODO: обработка того, что игрок - 3-ий лишний (возможно перенаправлять на OCCUPIED)
             pass
     elif flask.request.method == 'POST':
-        if app.games[game_code].checkPlayer(user_id) != 0:
-            col, row = list(map(int, flask.request.form.get('positions')))
+        col, row = list(map(int, flask.request.form.get('positions'))) 
+        if player != 0 and app.games[game_code].current_player == user_id and app.games[game_code].board[row][col] == 0:
             symbol = int(flask.request.form.get('symbol'))
             app.games[game_code].makeMove(col, row, symbol)
+            app.games[game_code].current_player = app.games[game_code].second_player if player == 1 else app.games[game_code].first_player
+        else:
+            # TODO: возможно обработку для остальных случаев
+            pass
