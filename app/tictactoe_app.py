@@ -3,6 +3,7 @@ import flask
 from uuid import uuid4 as uuid
 import re
 from random import choice
+from flask import json
 from game import Game
 
 SANITIZE_NICKNAME_RE = re.compile(r"[^A-Za-z0-9\-_=+\.]")
@@ -71,3 +72,19 @@ def signUp():
             return res
     res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + f'/{game_code}'
     return res
+
+@app.route('/api/<game_code>/data', methods=['GET', 'POST'])
+def data(game_code):
+    user_id = flask.request.cookies.get('ID')
+    if flask.request.method == 'GET':
+        res = {}
+        if app.games[game_code].checkPlayer(user_id) != 0:
+            res = {'game_board': app.games[game_code].board, 'game_state': app.games[game_code].gameOver()}
+            return json.dumps(res)
+        else:
+            pass
+    elif flask.request.method == 'POST':
+        if app.games[game_code].checkPlayer(user_id) != 0:
+            col, row = list(map(int, flask.request.form.get('positions')))
+            symbol = int(flask.request.form.get('symbol'))
+            app.games[game_code].makeMove(col, row, symbol)
