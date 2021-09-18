@@ -6,7 +6,7 @@ class Game:
         self.start = time()
         self.board = [[0,0,0],[0,0,0],[0,0,0]]
         self.second_player = None
-        self.current_player = None
+        self.current_player = {'id': None, 'symbol': None}
 
     def gameOver(self):
         # обработка вертикалей и горизонталей
