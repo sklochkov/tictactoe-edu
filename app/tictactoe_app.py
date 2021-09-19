@@ -97,6 +97,8 @@ def signUp():
 
 @app.route('/api/<game_code>/data', methods=['GET', 'POST'])
 def data(game_code):
+    if not game_code in app.games:
+        return "ERROR, NO GAME", 404
     user_id = flask.request.cookies.get('ID')
     player = app.games[game_code].check_player(user_id)
     if flask.request.method == 'GET':
