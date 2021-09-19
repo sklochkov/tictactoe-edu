@@ -98,7 +98,7 @@ def signUp():
 @app.route('/api/<game_code>/data', methods=['GET', 'POST'])
 def data(game_code):
     user_id = flask.request.cookies.get('ID')
-    player = app.games[game_code].checkPlayer(user_id)
+    player = app.games[game_code].check_player(user_id)
     if flask.request.method == 'GET':
         res = {}
         if player != 0:
@@ -107,8 +107,8 @@ def data(game_code):
             else:
                 opponent_username = app.games[game_code].first_player['username']
             res = ({'game_board': app.games[game_code].board,
-                    'game_state': app.games[game_code].gameOver(),
-                    'current_player': app.games[game_code].current_player,
+                    'game_state': app.games[game_code].game_over(),
+                    'current_player': app.games[game_code].current_player(),
                     'opponent_username': opponent_username})
             return json.dumps(res)
         else:
@@ -132,7 +132,7 @@ def data(game_code):
             app.games[game_code].current_player() == user_id and
             col >= 0 and col <= 2 and row >= 0 and row <= 2 and
             app.games[game_code].board[row * 3 + col] == 0):
-            app.games[game_code].makeMove(col, row, user_id)
+            app.games[game_code].make_move(col, row, user_id)
             res = flask.make_response('', 200)
             return res
         else:
