@@ -19,29 +19,35 @@ def sanitize_nickname(username):
         return choice(DEFAULT_ADJ) + choice(DEFAULT_NAME)
     return res
 
+
 def gen_game_code():
     name = ''
     for i in range(4):
         name += chr(65 + choice(range(26)))
     return name
 
-def gen_game(user_id):
+
+def gen_game(user_id, username):
     game_code = gen_game_code()
     while game_code in app.games:
         game_code = gen_game_code()
-    app.games[game_code] = Game(user_id)
+    app.games[game_code] = Game(user_id, username)
     return game_code
+
 
 class TictactoeApp(flask.Flask):
     def __init__(self, *args, **kwargs):
         super(TictactoeApp, self).__init__(*args, **kwargs)
         self.games = {}
 
+
 app = TictactoeApp(__name__)
+
 
 @app.route('/api/ping')
 def ping():
     return 'pong'
+
 
 @app.route('/api/signup', methods=['POST'])
 def signUp():
@@ -54,28 +60,40 @@ def signUp():
     else:
         user_id = str(uuid())
         res.set_cookie(b'ID', bytes(user_id, 'utf-8'))
-    if username !=  flask.request.cookies.get('username'):
+    if username != flask.request.cookies.get('username'):
         res.set_cookie(b'username', bytes(username, 'utf-8'))
     if user_type == "first" and not game_code:
-        game_code = gen_game(user_id)
-        # текущим игроком становится автоматически первый игрок
-        app.games[game_code].current_player['id'] = user_id
-        app.games[game_code].current_player['symbol'] = 1
+        game_code = gen_game(user_id, username)
     elif user_type == "first" and game_code:
-        res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/ERROR'
+        res.headers['Location'] = (flask.request.environ['REQUEST_SCHEME']
+                                   + '://'
+                                   + flask.request.environ['HTTP_HOST']
+                                   + '/ERROR')
         return res
     else:
         if game_code in app.games:
-            if app.games[game_code].checkPlayer(user_id) == 0 and not app.games[game_code].second_player:
-                app.games[game_code].setSecondPlayer(user_id)
+            if (app.games[game_code].check_player(user_id) == 0 and
+                    not app.games[game_code].second_player):
+                app.games[game_code].set_second_player(user_id, username)
             else:
-                res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/OCCUPIED'
+                res.headers['Location'] = (
+                    flask.request.environ['REQUEST_SCHEME']
+                    + '://'
+                    + flask.request.environ['HTTP_HOST']
+                    + '/OCCUPIED')
                 return res
         else:
-            res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/NO_GAME'
+            res.headers['Location'] = (flask.request.environ['REQUEST_SCHEME']
+                                       + '://'
+                                       + flask.request.environ['HTTP_HOST']
+                                       + '/NO_GAME')
             return res
-    res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + f'/{game_code}'
+    res.headers['Location'] = (flask.request.environ['REQUEST_SCHEME']
+                               + '://'
+                               + flask.request.environ['HTTP_HOST']
+                               + f'/{game_code}')
     return res
+
 
 @app.route('/api/<game_code>/data', methods=['GET', 'POST'])
 def data(game_code):
@@ -84,21 +102,38 @@ def data(game_code):
     if flask.request.method == 'GET':
         res = {}
         if player != 0:
-            res = {'game_board': app.games[game_code].board, 'game_state': app.games[game_code].gameOver(), 'current_player': app.games[game_code].current_player}
+            if player == 1:
+                opponent_username = app.games[game_code].second_player['username']
+            else:
+                opponent_username = app.games[game_code].first_player['username']
+            res = ({'game_board': app.games[game_code].board,
+                    'game_state': app.games[game_code].gameOver(),
+                    'current_player': app.games[game_code].current_player,
+                    'opponent_username': opponent_username})
             return json.dumps(res)
         else:
-            # TODO: обработка того, что игрок - 3-ий лишний (возможно перенаправлять на OCCUPIED)
-            pass
+            res = flask.make_response('', 302)
+            res.headers['Location'] = (
+                    flask.request.environ['REQUEST_SCHEME']
+                    + '://'
+                    + flask.request.environ['HTTP_HOST']
+                    + '/OCCUPIED')
+            return res
     elif flask.request.method == 'POST':
         res = ""
-        col, row = list(map(int, flask.request.form.get('positions'))) 
-        symbol = int(flask.request.form.get('symbol'))
-        if player != 0 and app.games[game_code].current_player['id'] == user_id and app.games[game_code].board[row][col] == 0 and app.games[game_code].current_player['symbol'] == symbol:
-            app.games[game_code].makeMove(col, row, symbol)
-            app.games[game_code].current_player['id'] = app.games[game_code].second_player if player == 1 else app.games[game_code].first_player
-            app.games[game_code].current_player['symbol'] = -1 if player == 1 else 1
+        col = flask.request.form.get('pos_x')
+        row = flask.request.form.get('pos_y')
+        if col.isdigit() and row.isdigit() and len(row) == 1 and len(col) == 1:
+            col = int(col)
+            row = int(row)
+        else:
+            return "ERROR", 400
+        if (player != 0 and
+            app.games[game_code].current_player() == user_id and
+            col >= 0 and col <= 2 and row >= 0 and row <= 2 and
+            app.games[game_code].board[row * 3 + col] == 0):
+            app.games[game_code].makeMove(col, row, user_id)
             res = flask.make_response('', 200)
             return res
         else:
-            # TODO: возможно обработку для остальных случаев
-            pass
+            return "ERROR", 400
