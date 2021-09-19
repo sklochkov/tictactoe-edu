@@ -38,7 +38,7 @@ class Game:
     def check_player(self, player):
         if self.first_player['id'] == player:
             return 1
-        elif self.second_player['id'] == player:
+        elif self.second_player and self.second_player['id'] == player:
             return 2
         else:
             return 0
