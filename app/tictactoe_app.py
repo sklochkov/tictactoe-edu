@@ -4,6 +4,7 @@ from uuid import uuid4 as uuid
 import re
 from random import choice
 from flask import json
+from werkzeug.wrappers import response
 from game import Game
 
 SANITIZE_NICKNAME_RE = re.compile(r"[^A-Za-z0-9\-_=+\.]")
@@ -58,7 +59,8 @@ def signUp():
     if user_type == "first" and not game_code:
         game_code = gen_game(user_id)
         # текущим игроком становится автоматически первый игрок
-        app.games[game_code].current_player = user_id
+        app.games[game_code].current_player['id'] = user_id
+        app.games[game_code].current_player['symbol'] = 1
     elif user_type == "first" and game_code:
         res.headers['Location'] = flask.request.environ['REQUEST_SCHEME'] + '://' + flask.request.environ['HTTP_HOST'] + '/ERROR'
         return res
@@ -88,11 +90,15 @@ def data(game_code):
             # TODO: обработка того, что игрок - 3-ий лишний (возможно перенаправлять на OCCUPIED)
             pass
     elif flask.request.method == 'POST':
-        col, row = list(map(int, flask.request.form.get('positions'))) 
-        if player != 0 and app.games[game_code].current_player == user_id and app.games[game_code].board[row][col] == 0:
-            symbol = int(flask.request.form.get('symbol'))
+        res = ""
+        col, row = list(map(int, flask.request.json.get('positions'))) 
+        symbol = int(flask.request.json.get('symbol'))
+        if player != 0 and app.games[game_code].current_player['id'] == user_id and app.games[game_code].board[row][col] == 0 and app.games[game_code].current_player['symbol'] == symbol:
             app.games[game_code].makeMove(col, row, symbol)
-            app.games[game_code].current_player = app.games[game_code].second_player if player == 1 else app.games[game_code].first_player
+            app.games[game_code].current_player['id'] = app.games[game_code].second_player if player == 1 else app.games[game_code].first_player
+            app.games[game_code].current_player['symbol'] = -1 if player == 1 else 1
+            res = flask.make_response('', 200)
+            return res
         else:
             # TODO: возможно обработку для остальных случаев
             pass
