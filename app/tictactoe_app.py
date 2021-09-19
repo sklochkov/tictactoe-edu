@@ -91,8 +91,8 @@ def data(game_code):
             pass
     elif flask.request.method == 'POST':
         res = ""
-        col, row = list(map(int, flask.request.json.get('positions'))) 
-        symbol = int(flask.request.json.get('symbol'))
+        col, row = list(map(int, flask.request.form.get('positions'))) 
+        symbol = int(flask.request.form.get('symbol'))
         if player != 0 and app.games[game_code].current_player['id'] == user_id and app.games[game_code].board[row][col] == 0 and app.games[game_code].current_player['symbol'] == symbol:
             app.games[game_code].makeMove(col, row, symbol)
             app.games[game_code].current_player['id'] = app.games[game_code].second_player if player == 1 else app.games[game_code].first_player
